@@ -1,7 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 
-function Container({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">{children}</div>;
+function Container({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 ${className}`}>{children}</div>;
 }
 
 const CLIENT_STEPS = [
@@ -34,14 +35,22 @@ export default function HowItWorksPage() {
   return (
     <div className="bg-white">
 
-      {/* Hero */}
-      <section className="bg-neutral-50 py-20 sm:py-24">
-        <Container>
+      {/* Hero — photo header */}
+      <section className="relative overflow-hidden py-28 sm:py-36">
+        <Image
+          src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1400&q=80"
+          alt="Professional cleaner at work in a bright home"
+          fill
+          className="object-cover"
+          priority
+        />
+        <div className="absolute inset-0 bg-gray-900/70" />
+        <Container className="relative z-10">
           <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
               How Ameza works
             </h1>
-            <p className="mt-5 text-lg text-gray-500">
+            <p className="mt-5 text-lg text-white/70">
               A simple, transparent marketplace connecting clients with verified local cleaners.
             </p>
           </div>
