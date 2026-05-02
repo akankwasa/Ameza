@@ -4,6 +4,31 @@
 -- ============================================================
 
 
+-- ── 0. LOCALITIES TABLE ────────────────────────────────────────────────────
+-- Stores ~16,000 Australian suburbs/towns sourced from the ABS via
+-- matthewproctor/australianpostcodes (github.com).
+-- Populated by running: node scripts/seed-localities.mjs
+-- Re-run the seed script periodically to pick up new suburbs.
+
+CREATE TABLE IF NOT EXISTS public.localities (
+  id       serial PRIMARY KEY,
+  suburb   text NOT NULL,
+  state    text NOT NULL,   -- e.g. 'VIC', 'NSW'
+  postcode text NOT NULL,
+  region   text             -- e.g. 'Melbourne', 'Sydney' (derived from SA4 area)
+);
+
+-- Trigram index for fast prefix + fuzzy search (used by /api/localities)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX IF NOT EXISTS localities_suburb_trgm ON localities USING gin(suburb gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS localities_state_idx   ON localities (state);
+
+-- Public read — no auth needed to search for a suburb
+ALTER TABLE localities ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "localities_public_read" ON localities;
+CREATE POLICY "localities_public_read" ON localities FOR SELECT TO public USING (true);
+
+
 -- ── 1. PROFILES TRIGGER ────────────────────────────────────────────────────
 -- Creates a profiles row automatically whenever a user signs up.
 -- The register page stores role + full_name in user_metadata.

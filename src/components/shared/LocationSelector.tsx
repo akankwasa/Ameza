@@ -1,75 +1,143 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { LOCATIONS, STATES, STATE_NAMES } from "@/lib/locations";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-// ─── Shared select style ──────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────
 
-const SELECT =
-  "block w-full appearance-none rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 pr-8 text-sm outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-900/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400";
+type Locality = {
+  id: number;
+  suburb: string;
+  state: string;
+  postcode: string;
+  region: string | null;
+};
 
-function ChevronDown() {
+// ─── Shared primitives ────────────────────────────────────────────────────
+
+const INPUT =
+  "block w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-900/10";
+
+function SpinnerIcon() {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 16 16"
-      fill="currentColor"
-      className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-    >
-      <path
-        fillRule="evenodd"
-        d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z"
-        clipRule="evenodd"
-      />
+    <svg className="h-4 w-4 animate-spin text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
   );
 }
 
-function SelectBox({
-  id,
-  value,
-  onChange,
-  disabled,
-  placeholder,
-  children,
-}: {
-  id?: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  placeholder: string;
-  children: React.ReactNode;
-}) {
+function XIcon() {
   return (
-    <div className="relative">
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className={`${SELECT} ${value ? "text-gray-900" : "text-gray-400"}`}
-      >
-        <option value="" disabled hidden>{placeholder}</option>
-        {children}
-      </select>
-      <ChevronDown />
-    </div>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
+      <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
+    </svg>
   );
 }
 
-// ─── Find state+city for a stored suburb name ─────────────────────────────
+// ─── Core autocomplete hook ───────────────────────────────────────────────
 
-function findLocation(suburb: string): { state: string; city: string } {
-  for (const [state, cities] of Object.entries(LOCATIONS)) {
-    for (const [city, suburbs] of Object.entries(cities)) {
-      if (suburbs.includes(suburb)) return { state, city };
+function useAutocomplete(onSelect: (loc: Locality) => void) {
+  const [query,    setQuery]    = useState("");
+  const [results,  setResults]  = useState<Locality[]>([]);
+  const [open,     setOpen]     = useState(false);
+  const [loading,  setLoading]  = useState(false);
+  const [cursor,   setCursor]   = useState(-1);
+  const debounce   = useRef<ReturnType<typeof setTimeout>>();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const search = useCallback(async (q: string) => {
+    if (q.length < 2) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const res  = await fetch(`/api/localities?q=${encodeURIComponent(q)}&limit=8`);
+      const data = await res.json() as Locality[];
+      setResults(data);
+      setOpen(data.length > 0);
+      setCursor(-1);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value;
+    setQuery(q);
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => search(q), 250);
   }
-  return { state: "", city: "" };
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!open) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setCursor(c => Math.min(c + 1, results.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setCursor(c => Math.max(c - 1, 0)); }
+    else if (e.key === "Enter" && cursor >= 0) { e.preventDefault(); select(results[cursor]); }
+    else if (e.key === "Escape") { setOpen(false); }
+  }
+
+  function select(loc: Locality) {
+    setQuery(loc.suburb);
+    setResults([]);
+    setOpen(false);
+    onSelect(loc);
+  }
+
+  function clear() {
+    setQuery("");
+    setResults([]);
+    setOpen(false);
+  }
+
+  return { query, results, open, loading, cursor, containerRef, handleChange, handleKeyDown, select, clear, setQuery };
 }
 
-// ─── Single-suburb selector ───────────────────────────────────────────────
-// Use for: post-job suburb, client profile suburb
+// ─── Dropdown list ────────────────────────────────────────────────────────
+
+function DropdownList({
+  results,
+  cursor,
+  onSelect,
+}: {
+  results: Locality[];
+  cursor: number;
+  onSelect: (loc: Locality) => void;
+}) {
+  return (
+    <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+      {results.map((loc, i) => (
+        <li key={loc.id}>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()} // prevent input blur before click
+            onClick={() => onSelect(loc)}
+            className={`flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+              i === cursor ? "bg-gray-50" : "hover:bg-gray-50"
+            }`}
+          >
+            <span className="font-medium text-gray-900">{loc.suburb}</span>
+            <span className="flex-shrink-0 text-xs text-gray-400">
+              {loc.state} {loc.postcode}
+              {loc.region ? ` · ${loc.region}` : ""}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ─── LocationSelector — single suburb ────────────────────────────────────
+// Props unchanged from previous version — consuming pages need no edits.
 
 export function LocationSelector({
   value,
@@ -80,66 +148,46 @@ export function LocationSelector({
   onChange: (suburb: string) => void;
   id?: string;
 }) {
-  const initial = value ? findLocation(value) : { state: "", city: "" };
-  const [state, setState] = useState(initial.state);
-  const [city,  setCity]  = useState(initial.city);
+  const ac = useAutocomplete((loc) => onChange(loc.suburb));
 
-  // Sync if value is cleared externally
+  // Sync display when value is cleared externally
   useEffect(() => {
-    if (!value) { setState(""); setCity(""); }
+    if (!value) ac.clear();
+    else if (value !== ac.query) ac.setQuery(value);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  const cities  = state ? Object.keys(LOCATIONS[state] ?? {}) : [];
-  const suburbs = state && city ? (LOCATIONS[state]?.[city] ?? []) : [];
-
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-      <SelectBox
-        value={state}
-        onChange={(s) => { setState(s); setCity(""); onChange(""); }}
-        placeholder="State"
-      >
-        {STATES.map((s) => (
-          <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>
-        ))}
-      </SelectBox>
-
-      <SelectBox
-        value={city}
-        onChange={(c) => { setCity(c); onChange(""); }}
-        disabled={!state}
-        placeholder="City / region"
-      >
-        {cities.map((c) => (
-          <option key={c} value={c}>{c}</option>
-        ))}
-      </SelectBox>
-
-      <SelectBox
+    <div ref={ac.containerRef} className="relative">
+      <input
         id={id}
-        value={value}
-        onChange={onChange}
-        disabled={!city}
-        placeholder="Suburb"
-      >
-        {suburbs.map((s) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </SelectBox>
+        type="text"
+        value={ac.query}
+        onChange={ac.handleChange}
+        onKeyDown={ac.handleKeyDown}
+        onFocus={() => ac.results.length > 0 && ac.open}
+        placeholder="Search suburb or town…"
+        autoComplete="off"
+        className={INPUT}
+      />
+      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        {ac.loading ? (
+          <SpinnerIcon />
+        ) : ac.query ? (
+          <button type="button" onClick={() => { ac.clear(); onChange(""); }} className="text-gray-300 hover:text-gray-500">
+            <XIcon />
+          </button>
+        ) : null}
+      </div>
+      {ac.open && (
+        <DropdownList results={ac.results} cursor={ac.cursor} onSelect={ac.select} />
+      )}
     </div>
   );
 }
 
-// ─── Multi-suburb selector (for cleaner coverage) ─────────────────────────
-// Use for: cleaner onboarding + profile edit coverage_suburbs
-
-function XIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-3.5 w-3.5">
-      <path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" />
-    </svg>
-  );
-}
+// ─── CoverageSelector — multi-suburb for cleaners ─────────────────────────
+// Props unchanged from previous version — consuming pages need no edits.
 
 export function CoverageSelector({
   suburbs,
@@ -148,19 +196,12 @@ export function CoverageSelector({
   suburbs: string[];
   onChange: (suburbs: string[]) => void;
 }) {
-  const [state,  setState]  = useState("");
-  const [city,   setCity]   = useState("");
-  const [suburb, setSuburb] = useState("");
-
-  const cities       = state ? Object.keys(LOCATIONS[state] ?? {}) : [];
-  const suburbOptions = state && city ? (LOCATIONS[state]?.[city] ?? []) : [];
-
-  function add() {
-    if (suburb && !suburbs.includes(suburb)) {
-      onChange([...suburbs, suburb]);
+  const ac = useAutocomplete((loc) => {
+    if (!suburbs.includes(loc.suburb)) {
+      onChange([...suburbs, loc.suburb]);
     }
-    setSuburb("");
-  }
+    ac.clear();
+  });
 
   return (
     <div className="space-y-3">
@@ -186,51 +227,29 @@ export function CoverageSelector({
         </div>
       )}
 
-      {/* Cascading dropdowns */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <SelectBox
-          value={state}
-          onChange={(s) => { setState(s); setCity(""); setSuburb(""); }}
-          placeholder="State"
-        >
-          {STATES.map((s) => (
-            <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>
-          ))}
-        </SelectBox>
-
-        <SelectBox
-          value={city}
-          onChange={(c) => { setCity(c); setSuburb(""); }}
-          disabled={!state}
-          placeholder="City / region"
-        >
-          {cities.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </SelectBox>
-
-        <SelectBox
-          value={suburb}
-          onChange={setSuburb}
-          disabled={!city}
-          placeholder="Suburb"
-        >
-          {suburbOptions
-            .filter((s) => !suburbs.includes(s))
-            .map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-        </SelectBox>
+      {/* Search input */}
+      <div ref={ac.containerRef} className="relative">
+        <input
+          type="text"
+          value={ac.query}
+          onChange={ac.handleChange}
+          onKeyDown={ac.handleKeyDown}
+          placeholder="Search and add suburbs or towns…"
+          autoComplete="off"
+          className={INPUT}
+        />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          {ac.loading ? <SpinnerIcon /> : ac.query ? (
+            <button type="button" onClick={ac.clear} className="text-gray-300 hover:text-gray-500"><XIcon /></button>
+          ) : null}
+        </div>
+        {ac.open && (
+          <DropdownList results={ac.results} cursor={ac.cursor} onSelect={ac.select} />
+        )}
       </div>
-
-      <button
-        type="button"
-        onClick={add}
-        disabled={!suburb}
-        className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        + Add suburb
-      </button>
+      <p className="text-xs text-gray-400">
+        Type a suburb or town name and select from the list. Add as many as you cover.
+      </p>
     </div>
   );
 }

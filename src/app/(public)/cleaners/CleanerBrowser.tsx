@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LOCATIONS, STATES, STATE_NAMES } from "@/lib/locations";
 import type { ServiceType } from "@/types/enums";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -105,6 +104,88 @@ function RatingDisplay({ avg, count }: { avg: number; count: number }) {
     </div>
   );
 }
+
+// ─── Suburb autocomplete (filter-specific, inline) ───────────────────────
+
+type LocalityResult = { id: number; suburb: string; state: string; postcode: string };
+
+function SuburbSearch({ value, onChange }: { value: string; onChange: (s: string) => void }) {
+  const [query,   setQuery]   = useState(value);
+  const [results, setResults] = useState<LocalityResult[]>([]);
+  const [open,    setOpen]    = useState(false);
+  const [loading, setLoading] = useState(false);
+  const debounce  = useRef<ReturnType<typeof setTimeout>>();
+  const ref       = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!value) setQuery("");
+  }, [value]);
+
+  useEffect(() => {
+    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const search = useCallback(async (q: string) => {
+    if (q.length < 2) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const res  = await fetch(`/api/localities?q=${encodeURIComponent(q)}&limit=8`);
+      const data = await res.json() as LocalityResult[];
+      setResults(data);
+      setOpen(data.length > 0);
+    } finally { setLoading(false); }
+  }, []);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const q = e.target.value;
+    setQuery(q);
+    if (!q) onChange("");
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => search(q), 250);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={handleChange}
+        placeholder="Search suburb or town…"
+        autoComplete="off"
+        className={`${INPUT} pr-8`}
+      />
+      {loading && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <svg className="h-4 w-4 animate-spin text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        </div>
+      )}
+      {open && results.length > 0 && (
+        <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-52 overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+          {results.map(loc => (
+            <li key={loc.id}>
+              <button
+                type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { setQuery(loc.suburb); onChange(loc.suburb); setOpen(false); }}
+                className="flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left text-sm hover:bg-gray-50"
+              >
+                <span className="font-medium text-gray-900">{loc.suburb}</span>
+                <span className="flex-shrink-0 text-xs text-gray-400">{loc.state} {loc.postcode}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─── ─────────────────────────────────────────────────────────────────────
 
 function SelectFilter({
   id,
@@ -227,13 +308,8 @@ function CleanerCardUI({ cleaner }: { cleaner: CleanerCard }) {
 
 export function CleanerBrowser({ cleaners }: { cleaners: CleanerCard[] }) {
   const [serviceType, setServiceType] = useState<ServiceType | "">("");
-  const [filterState, setFilterState] = useState("");
-  const [filterCity,  setFilterCity]  = useState("");
   const [suburb,      setSuburb]      = useState("");
   const [minRating,   setMinRating]   = useState("");
-
-  const filterCities  = filterState ? Object.keys(LOCATIONS[filterState] ?? {}) : [];
-  const filterSuburbs = filterState && filterCity ? (LOCATIONS[filterState]?.[filterCity] ?? []) : [];
 
   const filtered = cleaners.filter((c) => {
     if (serviceType && !c.services.includes(serviceType as ServiceType)) return false;
@@ -250,17 +326,10 @@ export function CleanerBrowser({ cleaners }: { cleaners: CleanerCard[] }) {
       <div className="mb-6 rounded-2xl bg-white p-4 shadow-[0_1px_6px_rgba(0,0,0,0.06)]">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex-1">
-            <label
-              htmlFor="serviceType"
-              className="mb-1.5 block text-xs font-medium text-gray-500"
-            >
+            <label htmlFor="serviceType" className="mb-1.5 block text-xs font-medium text-gray-500">
               Service type
             </label>
-            <SelectFilter
-              id="serviceType"
-              value={serviceType}
-              onChange={(v) => setServiceType(v as ServiceType | "")}
-            >
+            <SelectFilter id="serviceType" value={serviceType} onChange={(v) => setServiceType(v as ServiceType | "")}>
               <option value="">All services</option>
               {SERVICE_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
@@ -269,70 +338,15 @@ export function CleanerBrowser({ cleaners }: { cleaners: CleanerCard[] }) {
           </div>
 
           <div className="flex-1">
-            <p className="mb-1.5 text-xs font-medium text-gray-500">State</p>
-            <div className="relative">
-              <select
-                value={filterState}
-                onChange={(e) => { setFilterState(e.target.value); setFilterCity(""); setSuburb(""); }}
-                className={`${INPUT} appearance-none pr-9 ${filterState ? "text-gray-900" : "text-gray-400"}`}
-              >
-                <option value="">All states</option>
-                {STATES.map(s => <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>)}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 text-gray-400"><path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" /></svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1">
-            <p className="mb-1.5 text-xs font-medium text-gray-500">City</p>
-            <div className="relative">
-              <select
-                value={filterCity}
-                onChange={(e) => { setFilterCity(e.target.value); setSuburb(""); }}
-                disabled={!filterState}
-                className={`${INPUT} appearance-none pr-9 disabled:bg-gray-50 disabled:text-gray-400 ${filterCity ? "text-gray-900" : "text-gray-400"}`}
-              >
-                <option value="">All cities</option>
-                {filterCities.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 text-gray-400"><path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" /></svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1">
-            <p className="mb-1.5 text-xs font-medium text-gray-500">Suburb</p>
-            <div className="relative">
-              <select
-                value={suburb}
-                onChange={(e) => setSuburb(e.target.value)}
-                disabled={!filterCity}
-                className={`${INPUT} appearance-none pr-9 disabled:bg-gray-50 disabled:text-gray-400 ${suburb ? "text-gray-900" : "text-gray-400"}`}
-              >
-                <option value="">All suburbs</option>
-                {filterSuburbs.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 text-gray-400"><path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" /></svg>
-              </div>
-            </div>
+            <label className="mb-1.5 block text-xs font-medium text-gray-500">Suburb or town</label>
+            <SuburbSearch value={suburb} onChange={setSuburb} />
           </div>
 
           <div className="sm:w-40">
-            <label
-              htmlFor="minRating"
-              className="mb-1.5 block text-xs font-medium text-gray-500"
-            >
+            <label htmlFor="minRating" className="mb-1.5 block text-xs font-medium text-gray-500">
               Min rating
             </label>
-            <SelectFilter
-              id="minRating"
-              value={minRating}
-              onChange={setMinRating}
-            >
+            <SelectFilter id="minRating" value={minRating} onChange={setMinRating}>
               {MIN_RATING_OPTIONS.map(({ value, label }) => (
                 <option key={value} value={value}>{label}</option>
               ))}
@@ -342,7 +356,7 @@ export function CleanerBrowser({ cleaners }: { cleaners: CleanerCard[] }) {
           {hasActiveFilter && (
             <button
               type="button"
-              onClick={() => { setServiceType(""); setFilterState(""); setFilterCity(""); setSuburb(""); setMinRating(""); }}
+              onClick={() => { setServiceType(""); setSuburb(""); setMinRating(""); }}
               className="flex-shrink-0 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 sm:self-end"
             >
               Clear
