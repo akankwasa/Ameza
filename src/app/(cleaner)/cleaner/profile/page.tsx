@@ -50,6 +50,7 @@ function Spinner() {
 export default function CleanerProfileEditPage() {
   const [bio,          setBio]          = useState("");
   const [hourlyRate,   setHourlyRate]   = useState("");
+  const [abn,          setAbn]          = useState("");
   const [services,     setServices]     = useState<ServiceType[]>([]);
   const [suburbs,      setSuburbs]      = useState<string[]>([]);
   const [suburbInput,  setSuburbInput]  = useState("");
@@ -73,12 +74,16 @@ export default function CleanerProfileEditPage() {
       if (!user) return;
       const { data } = await supabase
         .from("cleaner_profiles")
-        .select("bio, hourly_rate, services, coverage_suburbs, availability, slug")
+        .select("bio, hourly_rate, abn, services, coverage_suburbs, availability, slug")
         .eq("id", user.id)
         .single();
       if (data) {
         setBio(data.bio ?? "");
         setHourlyRate(String(data.hourly_rate ?? ""));
+        if (data.abn) {
+          const d = (data.abn as string).replace(/\D/g, "");
+          setAbn(d.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, "$1 $2 $3 $4").trim());
+        }
         setServices((data.services as ServiceType[]) ?? []);
         setSuburbs((data.coverage_suburbs as string[]) ?? []);
         setAvailability((data.availability as Record<string, string[]>) ?? {});
@@ -124,6 +129,7 @@ export default function CleanerProfileEditPage() {
       id:               user.id,
       bio:              bio.trim() || null,
       hourly_rate:      rate,
+      abn:              abn.replace(/\s/g, "") || null,
       services,
       coverage_suburbs: suburbs,
       availability,
@@ -189,21 +195,45 @@ export default function CleanerProfileEditPage() {
 
       <form onSubmit={handleSave} noValidate className="space-y-6">
 
-        {/* Bio */}
+        {/* Bio + ABN */}
         <div className="rounded-2xl bg-white p-6 shadow-[0_1px_6px_rgba(0,0,0,0.06)]">
           <h2 className="mb-4 text-sm font-semibold text-gray-900">About you</h2>
-          <div>
-            <label htmlFor="bio" className="mb-1.5 block text-sm font-medium text-gray-700">Bio</label>
-            <textarea
-              id="bio"
-              rows={5}
-              maxLength={300}
-              value={bio}
-              onChange={e => setBio(e.target.value)}
-              placeholder="Describe your experience and what makes you great."
-              className={`${INPUT} resize-none`}
-            />
-            <p className={`mt-1 text-right text-xs ${bio.length >= 280 ? "text-amber-500" : "text-gray-400"}`}>{bio.length}/300</p>
+          <div className="space-y-5">
+            <div>
+              <label htmlFor="bio" className="mb-1.5 block text-sm font-medium text-gray-700">Bio</label>
+              <textarea
+                id="bio"
+                rows={5}
+                maxLength={300}
+                value={bio}
+                onChange={e => setBio(e.target.value)}
+                placeholder="Describe your experience and what makes you great."
+                className={`${INPUT} resize-none`}
+              />
+              <p className={`mt-1 text-right text-xs ${bio.length >= 280 ? "text-amber-500" : "text-gray-400"}`}>{bio.length}/300</p>
+            </div>
+
+            <div>
+              <label htmlFor="abn" className="mb-1.5 block text-sm font-medium text-gray-700">
+                ABN <span className="font-normal text-gray-400">(optional)</span>
+              </label>
+              <input
+                id="abn"
+                type="text"
+                inputMode="numeric"
+                maxLength={14}
+                value={abn}
+                onChange={e => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+                  setAbn(digits.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, "$1 $2 $3 $4").trim());
+                }}
+                placeholder="XX XXX XXX XXX"
+                className={INPUT}
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Required for NDIS clients and invoice-based payments.
+              </p>
+            </div>
           </div>
         </div>
 

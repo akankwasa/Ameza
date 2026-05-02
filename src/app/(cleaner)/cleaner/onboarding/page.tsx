@@ -193,6 +193,7 @@ export default function CleanerOnboardingPage() {
   const [idDoc,       setIdDoc]       = useState<File | null>(null);
   const [policeCheck, setPoliceCheck] = useState<File | null>(null);
   const [insurance,   setInsurance]   = useState<File | null>(null);
+  const [abn,         setAbn]         = useState("");
   const [confirmed,   setConfirmed]   = useState(false);
 
   // UI
@@ -315,6 +316,7 @@ export default function CleanerOnboardingPage() {
       id_doc_url:       idDocUrl,
       police_check_url: policeCheckUrl,
       insurance_url:    insuranceUrl,
+      abn:              abn.replace(/\s/g, "") || null,
       is_verified:      false,
     });
 
@@ -520,6 +522,29 @@ export default function CleanerOnboardingPage() {
                 file={insurance}
                 onChange={setInsurance}
               />
+
+              {/* ABN */}
+              <div>
+                <label htmlFor="abn" className="mb-1.5 block text-sm font-medium text-gray-700">
+                  ABN <span className="font-normal text-gray-400">(optional)</span>
+                </label>
+                <input
+                  id="abn"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={14}
+                  value={abn}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    setAbn(digits.replace(/(\d{2})(\d{3})(\d{3})(\d{3})/, "$1 $2 $3 $4").trim());
+                  }}
+                  placeholder="XX XXX XXX XXX"
+                  className="block w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-900/10"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Required for NDIS clients and invoice-based payments. You can add this later.
+                </p>
+              </div>
 
               <label className="flex cursor-pointer items-start gap-3 pt-1">
                 <input
