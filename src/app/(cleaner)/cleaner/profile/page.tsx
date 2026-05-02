@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/utils/format";
 import { deleteAccount } from "@/app/actions/account";
+import { CoverageSelector } from "@/components/shared/LocationSelector";
 import type { ServiceType } from "@/types/enums";
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -249,26 +250,7 @@ export default function CleanerProfileEditPage() {
         {/* Coverage suburbs */}
         <div className="rounded-2xl bg-white p-6 shadow-[0_1px_6px_rgba(0,0,0,0.06)]">
           <h2 className="mb-4 text-sm font-semibold text-gray-900">Coverage suburbs</h2>
-          <div className="rounded-xl border border-gray-200 px-3 py-2.5 transition focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-900/10">
-            {suburbs.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-1.5">
-                {suburbs.map(s => (
-                  <span key={s} className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                    {s}
-                    <button type="button" onClick={() => setSuburbs(p => p.filter(x => x !== s))} className="text-gray-400 hover:text-gray-700"><XIcon /></button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <input
-              type="text"
-              value={suburbInput}
-              onChange={e => setSuburbInput(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSuburb(); } }}
-              placeholder="Type a suburb and press Enter"
-              className="w-full text-sm text-gray-900 placeholder-gray-400 outline-none"
-            />
-          </div>
+          <CoverageSelector suburbs={suburbs} onChange={setSuburbs} />
         </div>
 
         {/* Availability */}

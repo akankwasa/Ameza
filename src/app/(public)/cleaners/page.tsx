@@ -26,7 +26,7 @@ export default async function CleanersPage() {
           </p>
         </div>
 
-        <CleanerBrowser cleaners={(cleaners ?? []) as CleanerCard[]} />
+        <CleanerBrowser cleaners={(cleaners ?? []) as unknown as CleanerCard[]} />
       </div>
     </div>
   );

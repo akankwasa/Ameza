@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/utils/format";
+import { CoverageSelector } from "@/components/shared/LocationSelector";
 import type { ServiceType } from "@/types/enums";
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -402,42 +403,12 @@ export default function CleanerOnboardingPage() {
                 <p className="mt-1 text-xs text-gray-400">Minimum $20 / hr</p>
               </div>
 
-              {/* Suburbs tag input */}
+              {/* Coverage suburbs selector */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   Suburbs you cover
                 </label>
-                <div className="rounded-xl border border-gray-200 px-3 py-2.5 transition focus-within:border-gray-400 focus-within:ring-2 focus-within:ring-gray-900/10">
-                  {suburbs.length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {suburbs.map((s) => (
-                        <span
-                          key={s}
-                          className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700"
-                        >
-                          {s}
-                          <button
-                            type="button"
-                            onClick={() => setSuburbs((prev) => prev.filter((x) => x !== s))}
-                            className="text-gray-400 hover:text-gray-700"
-                            aria-label={`Remove ${s}`}
-                          >
-                            <IconX />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <input
-                    type="text"
-                    value={suburbInput}
-                    onChange={(e) => setSuburbInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSuburb(); } }}
-                    placeholder="Type a suburb and press Enter"
-                    className="w-full text-sm text-gray-900 placeholder-gray-400 outline-none"
-                  />
-                </div>
-                <p className="mt-1 text-xs text-gray-400">Press Enter after each suburb name.</p>
+                <CoverageSelector suburbs={suburbs} onChange={setSuburbs} />
               </div>
             </div>
           </>

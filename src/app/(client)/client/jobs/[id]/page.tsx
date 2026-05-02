@@ -107,7 +107,7 @@ export default async function ClientJobPage({
     : null;
 
   const cleanerName =
-    (job.cleaner as { full_name: string } | null)?.full_name ?? null;
+    (job.cleaner as unknown as { full_name: string } | null)?.full_name ?? null;
 
   return (
     <div className="space-y-6">

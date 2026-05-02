@@ -21,5 +21,5 @@ export default async function AdminJobsPage() {
     )
     .order("created_at", { ascending: false });
 
-  return <AdminJobsClient initialJobs={(jobs ?? []) as JobWithClient[]} />;
+  return <AdminJobsClient initialJobs={(jobs ?? []) as unknown as JobWithClient[]} />;
 }

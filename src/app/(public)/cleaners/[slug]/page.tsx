@@ -123,7 +123,7 @@ export default async function CleanerProfilePage({
   if (!cleanerResult.data) notFound();
 
   const cleaner = cleanerResult.data;
-  const profile = cleaner.profiles as { full_name: string; avatar_url: string | null } | null;
+  const profile = cleaner.profiles as unknown as { full_name: string; avatar_url: string | null } | null;
   const name    = profile?.full_name ?? "Unknown";
   const avail   = (cleaner.availability ?? {}) as Record<string, string[]>;
 
@@ -222,7 +222,7 @@ export default async function CleanerProfilePage({
           {cleaner.services.length > 0 && (
             <Section title="Services offered">
               <div className="flex flex-wrap gap-2">
-                {cleaner.services.map((svc) => (
+                {(cleaner.services as ServiceType[]).map((svc) => (
                   <Tag key={svc} label={SERVICE_LABELS[svc as ServiceType] ?? svc} />
                 ))}
               </div>
@@ -233,7 +233,7 @@ export default async function CleanerProfilePage({
           {cleaner.coverage_suburbs.length > 0 && (
             <Section title="Coverage area">
               <div className="flex flex-wrap gap-2">
-                {cleaner.coverage_suburbs.map((suburb) => (
+                {(cleaner.coverage_suburbs as string[]).map((suburb) => (
                   <Tag key={suburb} label={suburb} />
                 ))}
               </div>
@@ -297,7 +297,7 @@ export default async function CleanerProfilePage({
             {reviews && reviews.length > 0 ? (
               <div className="space-y-5">
                 {reviews.map((review) => {
-                  const reviewer = review.reviewer as { full_name: string } | null;
+                  const reviewer = review.reviewer as unknown as { full_name: string } | null;
                   const reviewerName = reviewer?.full_name ?? "Anonymous";
                   const filled = Math.round(review.rating);
                   return (

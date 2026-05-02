@@ -38,7 +38,7 @@ export default async function ClientMessagesPage() {
     .in("status", ["matched", "confirmed", "completed"])
     .order("preferred_date", { ascending: false });
 
-  const threads = (jobs ?? []) as {
+  const threads = (jobs ?? []) as unknown as {
     id: string;
     service_type: ServiceType;
     suburb: string;

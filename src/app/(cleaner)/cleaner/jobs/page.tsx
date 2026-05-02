@@ -45,7 +45,7 @@ export default async function CleanerJobsPage() {
       {jobs && jobs.length > 0 ? (
         <div className="space-y-3">
           {jobs.map((job) => {
-            const client = job.client as { full_name: string } | null;
+            const client = job.client as unknown as { full_name: string } | null;
             const clientFirst = client?.full_name?.split(" ")[0] ?? "Client";
             const s = STATUS_BADGE[job.status as JobStatus];
             return (

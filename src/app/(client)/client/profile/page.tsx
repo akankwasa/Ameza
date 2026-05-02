@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { deleteAccount } from "@/app/actions/account";
+import { LocationSelector } from "@/components/shared/LocationSelector";
 
 const INPUT = "block w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-900/10";
 
@@ -94,10 +95,10 @@ export default function ClientProfilePage() {
           </div>
 
           <div>
-            <label htmlFor="suburb" className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
               Suburb <span className="font-normal text-gray-400">(optional)</span>
             </label>
-            <input id="suburb" type="text" value={suburb} onChange={e => setSuburb(e.target.value)} placeholder="e.g. Fitzroy" className={INPUT} />
+            <LocationSelector value={suburb} onChange={setSuburb} />
           </div>
 
           {error && (

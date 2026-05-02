@@ -13,7 +13,7 @@ export default async function AdminClientsPage() {
     .eq("role", "client")
     .order("created_at", { ascending: false });
 
-  const rows = (clients ?? []) as {
+  const rows = (clients ?? []) as unknown as {
     id: string;
     full_name: string;
     suburb: string | null;

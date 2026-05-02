@@ -75,7 +75,7 @@ export default async function CleanerJobPage({
     job.status as JobStatus
   );
 
-  const clientName = (job.client as { full_name: string } | null)?.full_name ?? null;
+  const clientName = (job.client as unknown as { full_name: string } | null)?.full_name ?? null;
   const clientFirst = clientName?.split(" ")[0] ?? "Client";
 
   const budgetText = job.budget_min && job.budget_max

@@ -16,5 +16,5 @@ export default async function AdminCleanersPage() {
     )
     .order("created_at", { ascending: false });
 
-  return <AdminCleanersClient initialCleaners={(cleaners ?? []) as CleanerRow[]} />;
+  return <AdminCleanersClient initialCleaners={(cleaners ?? []) as unknown as CleanerRow[]} />;
 }

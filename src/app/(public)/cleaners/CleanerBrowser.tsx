@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { LOCATIONS, STATES, STATE_NAMES } from "@/lib/locations";
 import type { ServiceType } from "@/types/enums";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -226,20 +227,22 @@ function CleanerCardUI({ cleaner }: { cleaner: CleanerCard }) {
 
 export function CleanerBrowser({ cleaners }: { cleaners: CleanerCard[] }) {
   const [serviceType, setServiceType] = useState<ServiceType | "">("");
+  const [filterState, setFilterState] = useState("");
+  const [filterCity,  setFilterCity]  = useState("");
   const [suburb,      setSuburb]      = useState("");
   const [minRating,   setMinRating]   = useState("");
 
+  const filterCities  = filterState ? Object.keys(LOCATIONS[filterState] ?? {}) : [];
+  const filterSuburbs = filterState && filterCity ? (LOCATIONS[filterState]?.[filterCity] ?? []) : [];
+
   const filtered = cleaners.filter((c) => {
     if (serviceType && !c.services.includes(serviceType as ServiceType)) return false;
-    if (suburb.trim()) {
-      const q = suburb.trim().toLowerCase();
-      if (!c.coverage_suburbs.some((s) => s.toLowerCase().includes(q))) return false;
-    }
+    if (suburb && !c.coverage_suburbs.includes(suburb)) return false;
     if (minRating && c.rating_avg < parseFloat(minRating)) return false;
     return true;
   });
 
-  const hasActiveFilter = serviceType !== "" || suburb.trim() !== "" || minRating !== "";
+  const hasActiveFilter = serviceType !== "" || suburb !== "" || minRating !== "";
 
   return (
     <>
@@ -266,20 +269,56 @@ export function CleanerBrowser({ cleaners }: { cleaners: CleanerCard[] }) {
           </div>
 
           <div className="flex-1">
-            <label
-              htmlFor="suburb"
-              className="mb-1.5 block text-xs font-medium text-gray-500"
-            >
-              Suburb
-            </label>
-            <input
-              id="suburb"
-              type="text"
-              value={suburb}
-              onChange={(e) => setSuburb(e.target.value)}
-              placeholder="e.g. Fitzroy"
-              className={INPUT}
-            />
+            <p className="mb-1.5 text-xs font-medium text-gray-500">State</p>
+            <div className="relative">
+              <select
+                value={filterState}
+                onChange={(e) => { setFilterState(e.target.value); setFilterCity(""); setSuburb(""); }}
+                className={`${INPUT} appearance-none pr-9 ${filterState ? "text-gray-900" : "text-gray-400"}`}
+              >
+                <option value="">All states</option>
+                {STATES.map(s => <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 text-gray-400"><path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            <p className="mb-1.5 text-xs font-medium text-gray-500">City</p>
+            <div className="relative">
+              <select
+                value={filterCity}
+                onChange={(e) => { setFilterCity(e.target.value); setSuburb(""); }}
+                disabled={!filterState}
+                className={`${INPUT} appearance-none pr-9 disabled:bg-gray-50 disabled:text-gray-400 ${filterCity ? "text-gray-900" : "text-gray-400"}`}
+              >
+                <option value="">All cities</option>
+                {filterCities.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 text-gray-400"><path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" /></svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1">
+            <p className="mb-1.5 text-xs font-medium text-gray-500">Suburb</p>
+            <div className="relative">
+              <select
+                value={suburb}
+                onChange={(e) => setSuburb(e.target.value)}
+                disabled={!filterCity}
+                className={`${INPUT} appearance-none pr-9 disabled:bg-gray-50 disabled:text-gray-400 ${suburb ? "text-gray-900" : "text-gray-400"}`}
+              >
+                <option value="">All suburbs</option>
+                {filterSuburbs.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4 text-gray-400"><path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" /></svg>
+              </div>
+            </div>
           </div>
 
           <div className="sm:w-40">
@@ -303,7 +342,7 @@ export function CleanerBrowser({ cleaners }: { cleaners: CleanerCard[] }) {
           {hasActiveFilter && (
             <button
               type="button"
-              onClick={() => { setServiceType(""); setSuburb(""); setMinRating(""); }}
+              onClick={() => { setServiceType(""); setFilterState(""); setFilterCity(""); setSuburb(""); setMinRating(""); }}
               className="flex-shrink-0 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 sm:self-end"
             >
               Clear

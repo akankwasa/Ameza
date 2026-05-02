@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils/format";
+import { LocationSelector } from "@/components/shared/LocationSelector";
 import type { ServiceType } from "@/types/enums";
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -370,16 +371,10 @@ export default function PostJobPage() {
               These details help cleaners understand what&apos;s needed.
             </p>
             <div className="mt-6 space-y-4">
-              <Field id="suburb" label="Suburb">
-                <input
-                  id="suburb"
-                  type="text"
-                  value={suburb}
-                  onChange={(e) => setSuburb(e.target.value)}
-                  placeholder="e.g. Fitzroy"
-                  className={INPUT}
-                />
-              </Field>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Suburb</label>
+                <LocationSelector id="suburb" value={suburb} onChange={setSuburb} />
+              </div>
 
               <Field id="propertySize" label="Property size">
                 <SelectField

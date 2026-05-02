@@ -30,7 +30,7 @@ export default async function AdminReviewsPage() {
     )
     .order("created_at", { ascending: false });
 
-  const rows = (reviews ?? []) as {
+  const rows = (reviews ?? []) as unknown as {
     id: string;
     rating: number;
     body: string | null;
